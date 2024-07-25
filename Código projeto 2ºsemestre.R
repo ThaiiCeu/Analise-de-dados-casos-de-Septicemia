@@ -119,8 +119,10 @@ contagem <- p1 %>%
   group_by(MES, SEXO) %>%
   summarize(n = n())
 
-# Converter a coluna MES para o formato Date
+# Converter a coluna MES para o formato Date, a coluna óbito para numerico e a coluna SEXO para caracter
 contagem$MES <- as.Date(paste0(contagem$MES, "-01"))
+contagem$óbitos = as.numeric(contagem$óbitos)
+contagem$SEXO = as.character(contagem$SEXO)
 
 # Criar o gráfico de série temporal com linhas para cada sexo
 Septicemia <- ggplot(contagem, aes(x = MES, y = n, color = factor(SEXO))) +
@@ -135,11 +137,14 @@ Septicemia <- ggplot(contagem, aes(x = MES, y = n, color = factor(SEXO))) +
 Septicemia
 ######################################################################
 
-estatics_plots_num <- function(data) {
+generate_statistics_and_plots <- function(data) {
   # Verificar se a entrada é um dataframe
   if (!is.data.frame(data)) {
     stop("O argumento fornecido não é um dataframe.")
   }
+  
+  # Lista para armazenar gráficos
+  plots <- list()
   
   # Percorrer cada coluna do dataframe
   for (colname in names(data)) {
@@ -149,18 +154,43 @@ estatics_plots_num <- function(data) {
     if (is.numeric(column)) {
       cat("Estatísticas para a coluna:", colname, "\n")
       
-      # Calcular e imprimir estatísticas descritivas
+      # Calcular estatísticas descritivas
       summary_stats <- summary(column)
+      sd_value <- sd(column, na.rm = TRUE)
+      cv <- sd_value / mean(column, na.rm = TRUE)
+      p99 <- quantile(column, 0.99, na.rm = TRUE)
+      p2 <- quantile(column, 0.02, na.rm = TRUE)
+      
+      # Imprimir estatísticas descritivas
       print(summary_stats)
+      cat("Desvio Padrão (SD):", sd_value, "\n")
+      cat("Coeficiente de variação (CV):", cv, "\n")
+      cat("Percentil 99:", p99, "\n")
+      cat("Percentil 2:", p2, "\n")
       
       # Criar histograma
-      hist(column, main = paste("Histograma da coluna:", colname), xlab = colname, ylab = "Frequência")
+      hist_plot <- ggplot(data, aes_string(x = colname)) +
+        geom_histogram(binwidth = diff(range(column, na.rm = TRUE))/30, fill = "blue", color = "black", alpha = 0.7) +
+        labs(title = paste("Histograma da coluna:", colname), x = colname, y = "Frequência") +
+        theme_minimal()
       
       # Criar boxplot
-      boxplot(column, main = paste("Boxplot da coluna:", colname), ylab = colname)
+      box_plot <- ggplot(data, aes_string(y = colname)) +
+        geom_boxplot(fill = "orange", color = "black") +
+        labs(title = paste("Boxplot da coluna:", colname), y = colname) +
+        theme_minimal()
+      
+      # Adicionar gráficos à lista
+      plots[[paste(colname, "hist", sep = "_")]] <- hist_plot
+      plots[[paste(colname, "box", sep = "_")]] <- box_plot
       
       cat("\n\n")  # Adicionar separador entre as colunas
     }
   }
+  
+  # Exibir os gráficos em um grid
+  grid.arrange(grobs = plots, ncol = 2)
 }
+
+generate_statistics_and_plots(contagem)
 
